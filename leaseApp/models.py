@@ -10,7 +10,6 @@ class User(AbstractUser):
         ('Tenant', 'Tenant'),
         ('Admin', 'Admin'),
     ]
-    userID = models.IntegerField(auto_created=True, unique=True, primary_key=True)
     userName = models.CharField(max_length=150)
     password = models.CharField(max_length=128)
     firstName = models.CharField(max_length=100)
@@ -55,7 +54,6 @@ class User(AbstractUser):
 
 class Property(models.Model):
     """ Define Class property"""
-    propertyID = models.IntegerField(auto_created=True, unique=True, primary_key=True)
     landlordID = models.ForeignKey(User, on_delete=models.CASCADE, related_name='properties')
     propertyName = models.CharField(max_length=128)
     address = models.TextField()
@@ -71,7 +69,6 @@ class Property(models.Model):
         return "Property Name: , Owned by {}".format(self.propertyName, self.landlordID.userName)
 
 class Unit(models.Model):
-    unitID = models.IntegerField(auto_created=True, unique=True, primary_key=True)
     propertyiD = models.ForeignKey(Property, on_delete=models.CASCADE, related_name='units')
     unitNumber = models.CharField(max_length=10)
     floor = models.IntegerField()
@@ -88,7 +85,6 @@ class Unit(models.Model):
     availabilityCalendar = models.JSONField()
 
 class Lease(models.Model):
-    leaseID = models.IntegerField(auto_created=True, unique=True, primary_key=True)
     unitID = models.ForeignKey(Unit, on_delete=models.CASCADE, related_name='leases')
     tenantID = models.ForeignKey(User, on_delete=models.CASCADE, related_name='leases')
     startDate = models.DateField()
@@ -98,7 +94,6 @@ class Lease(models.Model):
     renewalReminder = models.DateField()
 
 class RentPayment(models.Model):
-    PaymentID = models.IntegerField(auto_created=True, unique=True, primary_key=True)
     leaseID = models.ForeignKey(Lease, on_delete=models.CASCADE, related_name='rent_payments')
     paymentDate = models.DateField()
     amount = models.DecimalField(max_digits=10, decimal_places=2)
@@ -107,7 +102,6 @@ class RentPayment(models.Model):
     lateFee = models.DecimalField(max_digits=10, decimal_places=2, default=0)
 
 class MaintenanceRequest(models.Model):
-    requestID = models.IntegerField(auto_created=True, unique=True, primary_key=True)
     unitID = models.ForeignKey(Unit, on_delete=models.CASCADE, related_name='maintenance_requests')
     tenantID = models.ForeignKey(User, on_delete=models.CASCADE, related_name='maintenance_requests')
     description = models.TextField()
@@ -118,7 +112,6 @@ class MaintenanceRequest(models.Model):
     predictivAlert = models.BooleanField(default=False)
 
 class Message(models.Model):
-    messageID = models.IntegerField(auto_created=True, unique=True, primary_key=True)
     senderID = models.ForeignKey(User, on_delete=models.CASCADE, related_name='sent_messages')
     receiverID = models.ForeignKey(User, on_delete=models.CASCADE, related_name='received_messages')
     content = models.TextField()
@@ -126,7 +119,6 @@ class Message(models.Model):
     attachments = models.JSONField()
 
 class Document(models.Model):
-    documentID = models.IntegerField(auto_created=True, unique=True, primary_key=True)
     userID = models.ForeignKey(User, on_delete=models.CASCADE, related_name='documents')
     leaseID = models.ForeignKey(Lease, on_delete=models.SET_NULL, null=True, blank=True, related_name='documents')
     document_type = models.CharField(max_length=50)
@@ -134,28 +126,24 @@ class Document(models.Model):
     expiry_date = models.DateField()
 
 class Expense(models.Model):
-    expenseID = models.IntegerField(auto_created=True, unique=True, primary_key=True)
     propertyID = models.ForeignKey(Property, on_delete=models.CASCADE, related_name='expenses')
     description = models.TextField()
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     date = models.DateField()
 
 class Feedback(models.Model):
-    feedBackID = models.IntegerField(auto_created=True, unique=True, primary_key=True)
     givenBy = models.ForeignKey(User, on_delete=models.CASCADE, related_name='given_feedback')
     forUser = models.ForeignKey(User, on_delete=models.CASCADE, related_name='received_feedback')
     rating = models.FloatField()
     comments = models.TextField()
 
 class Vendor(models.Model):
-    vendorID = models.IntegerField(auto_created=True, unique=True, primary_key=True)
     name = models.CharField(max_length=100)
     contact_information = models.TextField()
     rating = models.FloatField(default=0)
     preferred = models.BooleanField(default=False)
 
 class TenantScreening(models.Model):
-    screeningID = models.IntegerField(auto_created=True, unique=True, primary_key=True)
     tenantID = models.ForeignKey(User, on_delete=models.CASCADE, related_name='screenings')
     backgroundCheckResult = models.JSONField()
     creditCheckResult = models.JSONField()
@@ -163,14 +151,12 @@ class TenantScreening(models.Model):
     riskScore = models.FloatField()
 
 class Forum(models.Model):
-    forumID = models.IntegerField(auto_created=True, unique=True, primary_key=True)
     propertyID = models.ForeignKey(Property, on_delete=models.CASCADE, related_name='forums')
     topic = models.CharField(max_length=200)
     createdBy = models.ForeignKey(User, on_delete=models.CASCADE, related_name='created_forums')
     createdAt = models.DateTimeField(auto_now_add=True)
 
 class ForumMessage(models.Model):
-    forumMEssageID = models.IntegerField(auto_created=True, unique=True, primary_key=True)
     forumID = models.ForeignKey(Forum, on_delete=models.CASCADE, related_name='messages')
     senderID = models.ForeignKey(User, on_delete=models.CASCADE, related_name='forum_messages')
     content = models.TextField()

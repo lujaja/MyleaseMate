@@ -2,6 +2,7 @@
 import os
 from dotenv import load_dotenv
 from pathlib import Path
+from datetime import timedelta
 
 # Load environment variables from .env file
 load_dotenv()
@@ -29,8 +30,12 @@ INSTALLED_APPS = [
     # other apps
     'rest_framework',
     'rest_framework_simplejwt',
+    # 'rest_framework_simplejwt.token_blacklist',
     'corsheaders',
     'channels',
+    'django_otp',
+    'django_otp.plugins.otp_totp',
+    'axes',
     'leaseApp',
 ]
 
@@ -42,6 +47,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'axes.middleware.AxesMiddleware',
 ]
 
 ROOT_URLCONF = 'system.urls'
@@ -115,8 +121,13 @@ STATIC_URL = 'static/'
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+# Celery Configurations
 CELERY_BROKER_URL = f"redis://{os.getenv('REDIS_HOST')}:{os.getenv('REDIS_PORT')}/{os.getenv('REDIS_DB')}"
 CELERY_RESULT_BACKEND = f"redis://{os.getenv('REDIS_HOST')}:{os.getenv('REDIS_PORT')}/{os.getenv('REDIS_DB')}"
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = os.getenv('TIME_ZONE', 'UTC')
 
 CHANNEL_LAYERS = {
     'default': {
@@ -137,4 +148,20 @@ REST_FRAMEWORK = {
 
 SIMPLE_JWT = {
     'SIGNING_KEY': os.getenv('JWT_SECRET_KEY'),
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=15),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
+    'ROTATE_REFRESH_TOKENS': True,
+    'BLACKLIST_AFTER_ROTATION': True,
+    'AUTH_HEADER_TYPES': ('Bearer',),
 }
+
+AXES_FAILURE_LIMIT = 5
+AXES_COOLOFF_TIME = timedelta(minutes=15)
+AXES_LOCKOUT_CALLABLE = 'users.views.lockout_response'
+
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = os.getenv('EMAIL_HOST')
+EMAIL_PORT =  os.getenv('EMAIL_PORT')
+EMAIL_USE_TLS =  os.getenv('EMAIL_USE_TLS')
+EMAIL_HOST_USER =  os.getenv('EMAIL_HOST_USER')
+EMAIL_HOST_PASSWORD =  os.getenv('EMAIL_HOST_PASSWORD')
