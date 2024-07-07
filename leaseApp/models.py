@@ -4,17 +4,16 @@ from django.contrib.auth.models import AbstractUser, Group, Permission
 from django.contrib.auth.hashers import make_password, check_password
 
 class User(AbstractUser):
-    """ Deifne Class User"""
     ROLE_CHOICES = [
         ('Landlord', 'Landlord'),
         ('Tenant', 'Tenant'),
         ('Admin', 'Admin'),
     ]
-    userName = models.CharField(max_length=150)
-    password = models.CharField(max_length=128)
-    firstName = models.CharField(max_length=100)
-    lastName = models.CharField(max_length=100)
+
     email = models.EmailField(unique=True)
+    userName = models.CharField(max_length=150)
+    firstName = models.CharField(max_length=100)
+    lastName = models.CharField(max_length=100)    
     isActive = models.BooleanField(default=False)
     isApproved = models.BooleanField(default=False)
     role = models.CharField(max_length=10, choices=ROLE_CHOICES)
@@ -22,22 +21,20 @@ class User(AbstractUser):
     twoFactorAuth = models.BooleanField(default=False)
     profilePic = models.URLField(null=True, blank=True)
     rating = models.FloatField(default=0)
+    verification_code = models.CharField(max_length=6, blank=True, null=True)
     groups = models.ManyToManyField(
         Group,
         related_name='leaseapp_user_set',
         blank=True,
-        help_text=(
-            'The groups this user belongs to.'
-            'A user will get all permission granted to each of there groups'
-        ),
-        verbose_name=('groups'),
+        help_text='The groups this user belongs to.',
+        verbose_name='groups',
     )
     user_permissions = models.ManyToManyField(
         Permission,
         related_name='leaseapp_user_permission_set',
         blank=True,
-        help_text=('Specific permission for this User.'),
-        verbose_name=('User permissions'),
+        help_text='Specific permissions for this user.',
+        verbose_name='user permissions',
     )
 
     def save(self, *args, **kwargs):
@@ -47,9 +44,9 @@ class User(AbstractUser):
 
     def check_password(self, raw_password: str) -> bool:
         return check_password(raw_password, self.password)
-    
+
     def __str__(self) -> str:
-        return "UserName: {}, Email: ".format(self.username, self.email)
+        return f"UserName: {self.username}, Email: {self.email}"
 
 
 class Property(models.Model):

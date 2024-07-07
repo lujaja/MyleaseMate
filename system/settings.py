@@ -30,7 +30,7 @@ INSTALLED_APPS = [
     # other apps
     'rest_framework',
     'rest_framework_simplejwt',
-    # 'rest_framework_simplejwt.token_blacklist',
+    'rest_framework_simplejwt.token_blacklist',
     'corsheaders',
     'channels',
     'django_otp',
@@ -103,6 +103,14 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
+AUTHENTICATION_BACKENDS = [
+    'leaseApp.authentication_backends.EmailBackend',
+    'axes.backends.AxesStandaloneBackend',
+    'django.contrib.auth.backends.ModelBackend',
+]
+
+
+AUTH_USER_MODEL = 'leaseApp.User'
 
 # Internationalization
 
@@ -155,13 +163,45 @@ SIMPLE_JWT = {
     'AUTH_HEADER_TYPES': ('Bearer',),
 }
 
-AXES_FAILURE_LIMIT = 5
+AXES_FAILURE_LIMIT = 1000
 AXES_COOLOFF_TIME = timedelta(minutes=15)
-AXES_LOCKOUT_CALLABLE = 'users.views.lockout_response'
+# AXES_LOCKOUT_CALLABLE = 'users.views.lockout_response'
 
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = os.getenv('EMAIL_HOST')
-EMAIL_PORT =  os.getenv('EMAIL_PORT')
-EMAIL_USE_TLS =  os.getenv('EMAIL_USE_TLS')
-EMAIL_HOST_USER =  os.getenv('EMAIL_HOST_USER')
-EMAIL_HOST_PASSWORD =  os.getenv('EMAIL_HOST_PASSWORD')
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = 'jarzcyber@gmail.com'
+EMAIL_HOST_PASSWORD = 'kaf12lujaja10L@'
+DEFAULT_FROM_EMAIL = 'noreply@myleasemate.com'
+
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'file': {
+            'level': 'DEBUG',
+            'class': 'logging.FileHandler',
+            'filename': 'logfile.log',  # Replace with your desired file path
+            'formatter': 'verbose',
+        },
+    },
+    'formatters': {
+        'verbose': {
+            'format': '%(asctime)s %(levelname)s %(module)s %(process)d %(thread)d %(message)s'
+        },
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['file'],
+            'level': 'DEBUG',
+            'propagate': True,
+        },
+        'leaseApp': {
+            'handlers': ['file'],
+            'level': 'DEBUG',
+            'propagate': True,
+        },
+    },
+}
