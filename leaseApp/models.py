@@ -48,9 +48,7 @@ class User(AbstractUser):
     def __str__(self) -> str:
         return f"UserName: {self.username}, Email: {self.email}"
 
-
 class Property(models.Model):
-    """ Define Class property"""
     landlordID = models.ForeignKey(User, on_delete=models.CASCADE, related_name='properties')
     propertyName = models.CharField(max_length=128)
     address = models.TextField()
@@ -63,7 +61,7 @@ class Property(models.Model):
     valuation = models.FloatField()
 
     def __str__(self) -> str:
-        return "Property Name: , Owned by {}".format(self.propertyName, self.landlordID.userName)
+        return f"Property Name: {self.propertyName}, Owned by {self.landlordID.userName}"
 
 class Unit(models.Model):
     propertyiD = models.ForeignKey(Property, on_delete=models.CASCADE, related_name='units')

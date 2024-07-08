@@ -7,8 +7,15 @@ from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 from django_otp.plugins.otp_totp.models import TOTPDevice
 from django.utils.crypto import get_random_string
-from .models import User, Property
-from .tasks import update_property_valuation
+from .models import (
+    User,
+    Property,
+    Unit
+)
+from .tasks import (
+    update_property_valuation,
+    process_unit_request
+)
 
 # import Serializers here after adding them in the named file
 from .serializers import (
@@ -18,7 +25,8 @@ from .serializers import (
     PasswordResetSerializer,
     PasswordResetConfirmSerializer,
     UserProfileSerializer,
-    PropertySerializer
+    PropertySerializer,
+    UnitSerializer
 )
 
 # import all tasks allocated to celery here
@@ -190,41 +198,26 @@ def disable_2fa(request):
 @api_view(['POST', 'GET'])
 @permission_classes([IsAuthenticated])
 def properties(request):
+    if request.user.role != 'Landlord':
+        return Response({'detail': 'Only landlords can manage properties'}, status=status.HTTP_403_FORBIDDEN)
+    
     if request.method == 'POST':
-        # Add a new property
-        if not request.user.is_landlord:
-            return Response({'detail': 'Only landlords can add properties'}, status=status.HTTP_403_FORBIDDEN)
-        
         serializer = PropertySerializer(data=request.data)
         if serializer.is_valid():
-            serializer.save(landlord=request.user)
+            serializer.save(landlordID=request.user)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
-    elif request.method == 'GET':
-        # List all properties or get specific details of a specific property
-        if not request.user.is_landlord:
-            return Response({'detail': 'Only landlords can view properties'}, status=status.HTTP_403_FORBIDDEN)
-        
-        properties = Property.objects.filter(landlord=request.user)
+    if request.method == 'GET':
+        properties = Property.objects.filter(landlordID=request.user)
         serializer = PropertySerializer(properties, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
-    else:
-        # Get details of a specific property
-        try:
-            property = Property.objects.get(id=property_id, landlord=request.user)
-            serializer = PropertySerializer(property)
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        except Property.DoesNotExist:
-            return Response({'detail': 'Property not found'}, status=status.HTTP_404_NOT_FOUND)
 
-
-# Update or delete a specific property (Private, Landlord)
 @api_view(['PUT', 'DELETE'])
 @permission_classes([IsAuthenticated])
 def property_details(request, property_id):
     try:
-        property = Property.objects.get(id=property_id, landlord=request.user)
+        property = Property.objects.get(id=property_id, landlordID=request.user)
     except Property.DoesNotExist:
         return Response({'detail': 'Property not found'}, status=status.HTTP_404_NOT_FOUND)
     
@@ -235,12 +228,62 @@ def property_details(request, property_id):
 
             # Call the Celery task to update the property valuation asynchronously
             new_valuation = serializer.validated_data.get('valuation')
-            update_property_valuation.delay(property.id, new_valuation)
+            if new_valuation:
+                update_property_valuation.delay(property.id, new_valuation)
 
             return Response(serializer.data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
-    elif request.method == 'DELETE':
-        # Delete a specific property
+    if request.method == 'DELETE':
         property.delete()
-        return Response({'detail': 'Property deleted successfully'}, status=status.HTTP_204_NO_CONTENT) 
+        return Response({'detail': 'Property deleted successfully'}, status=status.HTTP_204_NO_CONTENT)
+    
+@api_view(['POST', 'GET', 'PUT', 'DELETE'])
+@permission_classes([IsAuthenticated])
+def manage_units(request, property_id=None, unit_id=None):
+    try:
+        property_instance = Property.objects.get(id=property_id)
+    except Property.DoesNotExist:
+        return Response({'detail': 'Property not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'POST':
+        # Add new unit
+        request.data['property'] = property_instance.id
+        result = process_unit_request.delay('create', request.data)
+        return Response(result.get(), status=status.HTTP_201_CREATED if result.get()['status'] == 'success' else status.HTTP_400_BAD_REQUEST)
+
+    if request.method == 'GET':
+        if unit_id:
+            # Get specific unit details
+            try:
+                unit = Unit.objects.get(id=unit_id, property=property_instance)
+                serializer = UnitSerializer(unit)
+                return Response(serializer.data, status=status.HTTP_200_OK)
+            except Unit.DoesNotExist:
+                return Response({'detail': 'Unit not found'}, status=status.HTTP_404_NOT_FOUND)
+        else:
+            # Get list of units for a property
+            units = Unit.objects.filter(property=property_instance)
+            serializer = UnitSerializer(units, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+    if request.method == 'PUT':
+        try:
+            unit = Unit.objects.get(id=unit_id, property=property_instance)
+            serializer = UnitSerializer(unit, data=request.data, partial=True)
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data, status=status.HTTP_200_OK)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except Unit.DoesNotExist:
+            return Response({'detail': 'Unit not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'DELETE':
+        try:
+            unit = Unit.objects.get(id=unit_id, property=property_instance)
+            unit.delete()
+            return Response({'detail': 'Unit deleted successfully'}, status=status.HTTP_204_NO_CONTENT)
+        except Unit.DoesNotExist:
+            return Response({'detail': 'Unit not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    return Response({'detail': 'Method not allowed'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)

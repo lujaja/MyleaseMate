@@ -12,6 +12,7 @@ from .views import (
     disable_2fa,
     properties,
     property_details,
+    manage_units
 )
 
 urlpatterns = [
@@ -23,7 +24,13 @@ urlpatterns = [
     path('password-reset-confirm/', password_reset_confirm, name='password_reset_confirm'),
     path('enable-2fa/', enable_2fa, name='enable_2fa'),
     path('disable-2fa/', disable_2fa, name='disable_2fa'),
+    # properties urls
     path('properties/', properties, name='properties'),
     path('properties/<int:property_id>/', property_details, name='property_details'),
+ 
+    
+    # Unit urls
+    path('units/<int:property_id>/', manage_units, name='manage_units_property'),
+    path('units/<int:property_id>/<int:unit_id>/', manage_units, name='manage_unit_detail'),
 ]
 
