@@ -10,6 +10,11 @@ from .views import (
     password_reset_confirm,
     enable_2fa,
     disable_2fa,
+    add_property,
+    list_properties,
+    property_details,
+    update_property,
+    delete_property,
 )
 
 urlpatterns = [
@@ -21,4 +26,10 @@ urlpatterns = [
     path('password-reset-confirm/', password_reset_confirm, name='password_reset_confirm'),
     path('enable-2fa/', enable_2fa, name='enable_2fa'),
     path('disable-2fa/', disable_2fa, name='disable_2fa'),
+    path('properties/', add_property, name='add_property'),
+    path('properties/', list_properties, name='list_properties'),
+    path('properties/<int:property_id>/', property_details, name='property_details'),
+    path('properties/<int:property_id>/', update_property, name='update_property'),
+    path('properties/<int:property_id>/', delete_property, name='delete_property'),
 ]
+

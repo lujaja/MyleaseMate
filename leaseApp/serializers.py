@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model, authenticate
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from .models import User, Property
 
 User = get_user_model()
 
@@ -62,3 +63,12 @@ class UserProfileSerializer(serializers.ModelSerializer):
         fields = ['id', 'userName', 'firstName', 'lastName', 'email', 'contact', 'profilePic', 'rating']
         read_only_fields = ['email']
 
+
+class PropertySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Property
+        fields = [
+            'id', 'landlord', 'propertyName', 'address', 'type', 'size', 'rentAmount', 'photos', 'virtualTour',
+            'listingPlatforms', 'valuation'
+        ]
+        read_only_fields = ['id', 'landlordID']
