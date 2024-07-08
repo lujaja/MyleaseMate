@@ -25,7 +25,11 @@ from .tasks import (
 )
 
 User = get_user_model()
-
+"""
+********************************************************
+* User Manager APIs                                    *
+********************************************************
+"""
 # Register user Endpoint
 # tested and working
 @api_view(['POST'])
@@ -171,4 +175,10 @@ def disable_2fa(request):
     user.twoFactorAuth = False
     user.save()
     return Response({'detail': '2FA disabled successfully'}, status=status.HTTP_200_OK)
+
+"""
+********************************************************
+* Unit Manager APIs                                    *
+********************************************************
+"""
 
