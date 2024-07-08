@@ -7,7 +7,7 @@ from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 from django_otp.plugins.otp_totp.models import TOTPDevice
 from django.utils.crypto import get_random_string
-from .models import Property
+from .models import User, Property
 from .tasks import update_property_valuation
 
 # import Serializers here after adding them in the named file
@@ -21,7 +21,7 @@ from .serializers import (
     PropertySerializer
 )
 
-# import all tasks alloctaed to celery here
+# import all tasks allocated to celery here
 from .tasks import (
     send_verification_email,
     send_password_reset_email
@@ -78,7 +78,7 @@ def login(request):
     
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-# email verification after account creaton
+# email verification after account creation
 # Tested and not sending email
 @api_view(['POST'])
 def verify_email(request):
@@ -103,10 +103,10 @@ def verify_email(request):
 def profile(request):
     if request.method == 'GET':
         serializer = UserProfileSerializer(request.user)
-        print(f'Receavd get request -> {request.data}')
+        print(f'Received get request -> {request.data}')
         return Response(serializer.data, status=status.HTTP_200_OK)
     elif request.method == 'PUT':
-        print(f'Receavd put request -> {request.data}')
+        print(f'Received put request -> {request.data}')
         serializer = UserProfileSerializer(request.user, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
@@ -177,74 +177,60 @@ def disable_2fa(request):
 
 
 # Add a new property (Private, Landlord)
-@api_view(['POST'])
+@api_view(['POST', 'GET'])
 @permission_classes([IsAuthenticated])
-def add_property(request):
-    if not request.user.islandlord:
-        return Response({'detail': 'Only landlords can add properties'}, status=status.HTTP_403_FORBIDDEN)
-    
-    serializer = PropertySerializer(data=request.data)
-    if serializer.is_valid():
-        serializer.save(landlord=request.user)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
-# List all properties owned by the landlord (Private, Landlord)
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
-def list_properties(request):
-    if not request.user.islandlord:
-        return Response({'detail': 'Only landlords can view properties'}, status=status.HTTP_403_FORBIDDEN)
-    
-    properties = Property.objects.filter(landlord=request.user)
-    serializer = PropertySerializer(properties, many=True)
-    return Response(serializer.data, status=status.HTTP_200_OK)
-
-
-# Get details of a specific property (Private, Landlord)
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
-def property_details(request, id):
-    try:
-        property = Property.objects.get(id=id, landlord=request.user)
-    except Property.DoesNotExist:
-        return Response({'detail': 'Property not found'}, status=status.HTTP_404_NOT_FOUND)
-    
-    serializer = PropertySerializer(property)
-    return Response(serializer.data, status=status.HTTP_200_OK)
-
-
-# Update details of a specific property (Private, Landlord)
-@api_view(['PUT'])
-@permission_classes([IsAuthenticated])
-def update_property(request, id):
-    try:
-        property = Property.objects.get(id=id, landlord=request.user)
-    except Property.DoesNotExist:
-        return Response({'detail': 'Property not found'}, status=status.HTTP_404_NOT_FOUND)
-    
-    serializer = PropertySerializer(property, data=request.data, partial=True)
-    if serializer.is_valid():
-        serializer.save()
-
-        # Call the Celery task to update the property valuation asynchronously
-        new_valuation = serializer.validated_data.get('valuation')
-        update_property_valuation.delay(id, new_valuation)
+def properties(request):
+    if request.method == 'POST':
+        # Add a new property
+        if not request.user.is_landlord:
+            return Response({'detail': 'Only landlords can add properties'}, status=status.HTTP_403_FORBIDDEN)
         
+        serializer = PropertySerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save(landlord=request.user)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    elif request.method == 'GET':
+        # List all properties or get specific details of a specific property
+        if not request.user.is_landlord:
+            return Response({'detail': 'Only landlords can view properties'}, status=status.HTTP_403_FORBIDDEN)
+        
+        properties = Property.objects.filter(landlord=request.user)
+        serializer = PropertySerializer(properties, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    else:
+        # Get details of a specific property
+        try:
+            property = Property.objects.get(id=property_id, landlord=request.user)
+            serializer = PropertySerializer(property)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Property.DoesNotExist:
+            return Response({'detail': 'Property not found'}, status=status.HTTP_404_NOT_FOUND)
 
 
-# Delete a specific property (Private, Landlord)
-@api_view(['DELETE'])
+# Update or delete a specific property (Private, Landlord)
+@api_view(['PUT', 'DELETE'])
 @permission_classes([IsAuthenticated])
-def delete_property(request, id):
+def property_details(request, property_id):
     try:
-        property = Property.objects.get(id=id, landlord=request.user)
+        property = Property.objects.get(id=property_id, landlord=request.user)
     except Property.DoesNotExist:
         return Response({'detail': 'Property not found'}, status=status.HTTP_404_NOT_FOUND)
     
-    property.delete()
-    return Response({'detail': 'Property deleted successfully'}, status=status.HTTP_200_OK)
-   
+    if request.method == 'PUT':
+        serializer = PropertySerializer(property, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+
+            # Call the Celery task to update the property valuation asynchronously
+            new_valuation = serializer.validated_data.get('valuation')
+            update_property_valuation.delay(property.id, new_valuation)
+
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    elif request.method == 'DELETE':
+        # Delete a specific property
+        property.delete()
+        return Response({'detail': 'Property deleted successfully'}, status=status.HTTP_204_NO_CONTENT) 
