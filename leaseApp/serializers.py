@@ -7,11 +7,10 @@ from .models import (
 )
 
 User = get_user_model()
-
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'userName', 'firstName', 'lastName', 'email', 'role', 'contact', 'profilePic', 'rating']
+        fields = ['id', 'username', 'first_name', 'last_name', 'email', 'role', 'contact', 'profilePic', 'rating']
 
 class UserRegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
@@ -19,13 +18,17 @@ class UserRegisterSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ['userName', 'password', 'firstName', 'lastName', 'email', 'role', 'contact']
+        fields = ['username', 'password', 'first_name', 'last_name', 'email', 'role', 'contact']
 
     def create(self, validated_data):
         user = User.objects.create(**validated_data)
-        user.set_password(validated_data['password'])
+        # user.set_password(validated_data['password'])
         user.save()
         return user
+    def update(self, instance, validated_data):
+        if 'password' in validated_data:
+            instance.set_password(validated_data['password'])
+        return super().update(instance, validated_data)
 
 class UserLoginSerializer(serializers.Serializer):
     email = serializers.EmailField()
@@ -39,14 +42,13 @@ class UserLoginSerializer(serializers.Serializer):
             user = authenticate(request=self.context.get('request'), username=email, password=password)
 
             if not user:
-                msg = 'Unable to log in with provided credentials.'
-                raise serializers.ValidationError(msg, code='authorization')
+                raise serializers.ValidationError('Unable to log in with provided credentials.', code='authorization')
 
             attrs['user'] = user
             return attrs
         else:
-            msg = 'Must include "email" and "password".'
-            raise serializers.ValidationError(msg, code='authorization')
+            raise serializers.ValidationError('Must include "email" and "password".', code='authorization')
+
 
 class EmailVerificationSerializer(serializers.Serializer):
     email = serializers.EmailField()
@@ -63,7 +65,7 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
 class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'userName', 'firstName', 'lastName', 'email', 'contact', 'profilePic', 'rating']
+        fields = ['id', 'user_name', 'first_name', 'last_name', 'email', 'contact', 'profile_pic', 'rating']
         read_only_fields = ['email']
 
 
@@ -71,8 +73,8 @@ class PropertySerializer(serializers.ModelSerializer):
     class Meta:
         model = Property
         fields = [
-            'id', 'landlord', 'propertyName', 'address', 'type', 'size', 'rentAmount', 'photos', 'virtualTour',
-            'listingPlatforms', 'valuation'
+            'id', 'landlord', 'property_name', 'address', 'type', 'size', 'rent_amount', 'photos', 'virtual_tour',
+            'listing_platforms', 'valuation'
         ]
         read_only_fields = ['landlordID']
 

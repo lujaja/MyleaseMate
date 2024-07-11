@@ -1,9 +1,9 @@
-
 from django.db import models
 from django.contrib.auth.models import AbstractUser, Group, Permission
-from django.contrib.auth.hashers import make_password, check_password
+from django.contrib.auth.hashers import check_password
+from dirtyfields import DirtyFieldsMixin
 
-class User(AbstractUser):
+class User(AbstractUser, DirtyFieldsMixin):
     ROLE_CHOICES = [
         ('Landlord', 'Landlord'),
         ('Tenant', 'Tenant'),
@@ -11,15 +11,14 @@ class User(AbstractUser):
     ]
 
     email = models.EmailField(unique=True)
-    userName = models.CharField(max_length=150)
-    firstName = models.CharField(max_length=100)
-    lastName = models.CharField(max_length=100)    
-    isActive = models.BooleanField(default=False)
-    isApproved = models.BooleanField(default=False)
+    first_name = models.CharField(max_length=100)
+    last_name = models.CharField(max_length=100)
+    is_active = models.BooleanField(default=True)
+    is_approved = models.BooleanField(default=True)
     role = models.CharField(max_length=10, choices=ROLE_CHOICES)
     contact = models.TextField()
-    twoFactorAuth = models.BooleanField(default=False)
-    profilePic = models.URLField(null=True, blank=True)
+    two_factor_auth = models.BooleanField(default=False)
+    profile_pic = models.URLField(null=True, blank=True)
     rating = models.FloatField(default=0)
     verification_code = models.CharField(max_length=6, blank=True, null=True)
     groups = models.ManyToManyField(
@@ -38,11 +37,16 @@ class User(AbstractUser):
     )
 
     def save(self, *args, **kwargs):
-        if not self.pk:
-            self.password = make_password(self.password)
+        if self.pk is None or 'password' in self.get_dirty_fields():
+            print(f"Hashing password for user: {self.email}")
+            self.set_password(self.password)
         super().save(*args, **kwargs)
 
+
     def check_password(self, raw_password: str) -> bool:
+        print(f"Checking password for user: {self.email}")
+        print(f'self.paswword->{self.password}')
+        print(f'raw password->{raw_password}')
         return check_password(raw_password, self.password)
 
     def __str__(self) -> str:
@@ -50,14 +54,14 @@ class User(AbstractUser):
 
 class Property(models.Model):
     landlordID = models.ForeignKey(User, on_delete=models.CASCADE, related_name='properties')
-    propertyName = models.CharField(max_length=128)
+    property_name = models.CharField(max_length=128)
     address = models.TextField()
     type = models.CharField(max_length=50)
     size = models.FloatField()
-    rentAmount = models.DecimalField(max_digits=10, decimal_places=2)
+    rent_amount = models.DecimalField(max_digits=10, decimal_places=2)
     photos = models.JSONField()
-    virtualTour = models.URLField(null=True, blank=True)
-    listingPlatforms = models.JSONField()
+    virtual_tour = models.URLField(null=True, blank=True)
+    listing_platforms = models.JSONField()
     valuation = models.FloatField()
 
     def __str__(self) -> str:
@@ -65,7 +69,7 @@ class Property(models.Model):
 
 class Unit(models.Model):
     propertyiD = models.ForeignKey(Property, on_delete=models.CASCADE, related_name='units')
-    unitNumber = models.CharField(max_length=10)
+    unit_number = models.CharField(max_length=10)
     floor = models.IntegerField()
     size = models.FloatField()
     status = models.CharField(
@@ -76,25 +80,25 @@ class Unit(models.Model):
             ('Maintenance', 'Maintenance')
         ]
     )
-    rentAmount = models.DecimalField(max_digits=10, decimal_places=2)
-    availabilityCalendar = models.JSONField()
+    rent_amount = models.DecimalField(max_digits=10, decimal_places=2)
+    availability = models.JSONField()
 
 class Lease(models.Model):
     unitID = models.ForeignKey(Unit, on_delete=models.CASCADE, related_name='leases')
     tenantID = models.ForeignKey(User, on_delete=models.CASCADE, related_name='leases')
-    startDate = models.DateField()
-    endDate = models.DateField(null=True)
-    rentAmount = models.DecimalField(max_digits=10, decimal_places=2)
-    signeDocument = models.URLField()
-    renewalReminder = models.DateField()
+    start_date = models.DateField()
+    end_date = models.DateField(null=True)
+    rent_amount = models.DecimalField(max_digits=10, decimal_places=2)
+    signe_document = models.URLField()
+    renewal_reminder = models.DateField()
 
 class RentPayment(models.Model):
     leaseID = models.ForeignKey(Lease, on_delete=models.CASCADE, related_name='rent_payments')
-    paymentDate = models.DateField()
+    payment_date = models.DateField()
     amount = models.DecimalField(max_digits=10, decimal_places=2)
-    paymentMethod = models.CharField(max_length=20)
+    payment_method = models.CharField(max_length=20)
     receipt = models.URLField()
-    lateFee = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    late_fee = models.DecimalField(max_digits=10, decimal_places=2, default=0)
 
 class MaintenanceRequest(models.Model):
     unitID = models.ForeignKey(Unit, on_delete=models.CASCADE, related_name='maintenance_requests')
@@ -102,9 +106,9 @@ class MaintenanceRequest(models.Model):
     description = models.TextField()
     request_date = models.DateField()
     status = models.CharField(max_length=15, choices=[('Pending', 'Pending'), ('In Progress', 'In Progress'), ('Completed', 'Completed')])
-    assignedVendor = models.ForeignKey('Vendor', on_delete=models.SET_NULL, null=True, blank=True, related_name='maintenance_requests')
+    assigned_vendor = models.ForeignKey('Vendor', on_delete=models.SET_NULL, null=True, blank=True, related_name='maintenance_requests')
     feedback = models.TextField(null=True, blank=True)
-    predictivAlert = models.BooleanField(default=False)
+    predictive_alert = models.BooleanField(default=False)
 
 class Message(models.Model):
     senderID = models.ForeignKey(User, on_delete=models.CASCADE, related_name='sent_messages')
@@ -140,16 +144,16 @@ class Vendor(models.Model):
 
 class TenantScreening(models.Model):
     tenantID = models.ForeignKey(User, on_delete=models.CASCADE, related_name='screenings')
-    backgroundCheckResult = models.JSONField()
-    creditCheckResult = models.JSONField()
-    referenceVerification = models.JSONField()
-    riskScore = models.FloatField()
+    background_check_result = models.JSONField()
+    credit_check_result = models.JSONField()
+    reference_verification = models.JSONField()
+    risk_score = models.FloatField()
 
 class Forum(models.Model):
     propertyID = models.ForeignKey(Property, on_delete=models.CASCADE, related_name='forums')
     topic = models.CharField(max_length=200)
-    createdBy = models.ForeignKey(User, on_delete=models.CASCADE, related_name='created_forums')
-    createdAt = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='created_forums')
+    created_at = models.DateTimeField(auto_now_add=True)
 
 class ForumMessage(models.Model):
     forumID = models.ForeignKey(Forum, on_delete=models.CASCADE, related_name='messages')

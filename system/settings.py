@@ -81,7 +81,8 @@ DATABASES = {
         'HOST': os.getenv('DB_HOST'),
         'PORT': os.getenv('DB_PORT'),
        'OPTIONS': {
-            'options': f"-c timezone={os.getenv('TIME_ZONE')}",
+           'client_encoding': 'UTF8',
+           'options': f"-c timezone={os.getenv('TIME_ZONE')}",
         }
     }
 }
@@ -108,6 +109,7 @@ AUTHENTICATION_BACKENDS = [
     'axes.backends.AxesStandaloneBackend',
     'django.contrib.auth.backends.ModelBackend',
 ]
+
 
 
 AUTH_USER_MODEL = 'leaseApp.User'
@@ -156,7 +158,7 @@ REST_FRAMEWORK = {
 
 SIMPLE_JWT = {
     'SIGNING_KEY': os.getenv('JWT_SECRET_KEY'),
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=15),
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,
@@ -174,7 +176,7 @@ EMAIL_USE_TLS = True
 EMAIL_HOST_USER = 'jarzcyber@gmail.com'
 EMAIL_HOST_PASSWORD = 'kaf12lujaja10L@'
 DEFAULT_FROM_EMAIL = 'noreply@myleasemate.com'
-
+"""
 
 LOGGING = {
     'version': 1,
@@ -205,3 +207,4 @@ LOGGING = {
         },
     },
 }
+"""

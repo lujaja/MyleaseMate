@@ -59,13 +59,15 @@ def register(request):
 # Test and working
 @api_view(['POST'])
 def login(request):
+    print(request.data)
     serializer = UserLoginSerializer(data=request.data, context={'request': request})
     
     if serializer.is_valid():
         user = serializer.validated_data['user']
+        print(user)
         
         # Check if two-factor authentication is enabled for the user
-        if user.twoFactorAuth:
+        if user.two_factor_auth:
             if 'otp_token' not in request.data:
                 return Response({'detail': 'OTP token required'}, status=status.HTTP_400_BAD_REQUEST)
             
@@ -81,12 +83,13 @@ def login(request):
         }
         
         # Send verification code via email if 2FA is enabled
-        if user.twoFactorAuth:
+        if user.two_factor_auth:
             verification_code = get_random_string(length=6, allowed_chars='0123456789')
             print(f'verification code {verification_code} sent to {user.email}')
             send_verification_email.delay(user.email, verification_code)
         
         return Response(tokens, status=status.HTTP_200_OK)
+    print(serializer.errors)
     
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
