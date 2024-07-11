@@ -190,11 +190,7 @@ def disable_2fa(request):
     user.save()
     return Response({'detail': '2FA disabled successfully'}, status=status.HTTP_200_OK)
 
-"""
-********************************************************
-* Unit Manager APIs                                    *
-********************************************************
-"""
+
 
 
 # Add a new property (Private, Landlord)
@@ -241,38 +237,58 @@ def property_details(request, property_id):
         property.delete()
         return Response({'detail': 'Property deleted successfully'}, status=status.HTTP_204_NO_CONTENT)
     
+"""
+********************************************************
+* Unit Manager APIs                                    *
+********************************************************
+"""
 @api_view(['POST', 'GET', 'PUT', 'DELETE'])
 @permission_classes([IsAuthenticated])
-def manage_units(request, property_id=None, unit_id=None):
-    try:
-        property_instance = Property.objects.get(id=property_id)
-    except Property.DoesNotExist:
-        return Response({'detail': 'Property not found'}, status=status.HTTP_404_NOT_FOUND)
-
+def manage_units(request, property_name=None, unit_id=None):
+    user = request.user
+    print(user)
+    
+    # Ensure user is a Landlord
+    if user.role != 'Landlord':
+        return Response({'detail': 'Unauthorized access'}, status=status.HTTP_403_FORBIDDEN)
+    
+    # Retrieve properties belonging to the logged-in Landlord
+    properties = Property.objects.filter(user=user)
+    for n in properties:
+        print(n)
+    
+    # Handle POST request to add a new unit to a property
     if request.method == 'POST':
-        # Add new unit
+        try:
+            property_instance = properties.get(property_name=property_name)
+        except Property.DoesNotExist:
+            return Response({'detail': 'Property not found'}, status=status.HTTP_404_NOT_FOUND)
+        
         request.data['property'] = property_instance.id
-        result = process_unit_request.delay('create', request.data)
-        return Response(result.get(), status=status.HTTP_201_CREATED if result.get()['status'] == 'success' else status.HTTP_400_BAD_REQUEST)
+        serializer = UnitSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+    # Handle GET request to retrieve units
     if request.method == 'GET':
         if unit_id:
-            # Get specific unit details
             try:
-                unit = Unit.objects.get(id=unit_id, property=property_instance)
+                unit = Unit.objects.get(id=unit_id, property__in=properties)
                 serializer = UnitSerializer(unit)
                 return Response(serializer.data, status=status.HTTP_200_OK)
             except Unit.DoesNotExist:
                 return Response({'detail': 'Unit not found'}, status=status.HTTP_404_NOT_FOUND)
         else:
-            # Get list of units for a property
-            units = Unit.objects.filter(property=property_instance)
+            units = Unit.objects.filter(property__in=properties)
             serializer = UnitSerializer(units, many=True)
             return Response(serializer.data, status=status.HTTP_200_OK)
 
+    # Handle PUT request to update a unit
     if request.method == 'PUT':
         try:
-            unit = Unit.objects.get(id=unit_id, property=property_instance)
+            unit = Unit.objects.get(id=unit_id, property__in=properties)
             serializer = UnitSerializer(unit, data=request.data, partial=True)
             if serializer.is_valid():
                 serializer.save()
@@ -281,9 +297,10 @@ def manage_units(request, property_id=None, unit_id=None):
         except Unit.DoesNotExist:
             return Response({'detail': 'Unit not found'}, status=status.HTTP_404_NOT_FOUND)
 
+    # Handle DELETE request to delete a unit
     if request.method == 'DELETE':
         try:
-            unit = Unit.objects.get(id=unit_id, property=property_instance)
+            unit = Unit.objects.get(id=unit_id, property__in=properties)
             unit.delete()
             return Response({'detail': 'Unit deleted successfully'}, status=status.HTTP_204_NO_CONTENT)
         except Unit.DoesNotExist:

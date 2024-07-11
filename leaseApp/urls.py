@@ -30,7 +30,7 @@ urlpatterns = [
  
     
     # Unit urls
-    path('units/<int:property_id>/', manage_units, name='manage_units_property'),
-    path('units/<int:property_id>/<int:unit_id>/', manage_units, name='manage_unit_detail'),
+    path('units/', manage_units, name='manage_units'),
+    path('units/<int:unit_id>/', manage_units, name='manage_unit'),
 ]
 

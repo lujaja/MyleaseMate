@@ -18,7 +18,7 @@ class UserRegisterSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ['username', 'password', 'first_name', 'last_name', 'email', 'role', 'contact']
+        fields = ['password', 'first_name', 'last_name', 'email', 'role', 'contact']
 
     def create(self, validated_data):
         user = User.objects.create(**validated_data)
@@ -65,18 +65,15 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
 class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'user_name', 'first_name', 'last_name', 'email', 'contact', 'profile_pic', 'rating']
+        fields = ['id', 'first_name', 'last_name', 'email', 'contact', 'profile_pic', 'rating']
         read_only_fields = ['email']
 
 
 class PropertySerializer(serializers.ModelSerializer):
     class Meta:
         model = Property
-        fields = [
-            'id', 'landlord', 'property_name', 'address', 'type', 'size', 'rent_amount', 'photos', 'virtual_tour',
-            'listing_platforms', 'valuation'
-        ]
-        read_only_fields = ['landlordID']
+        fields = '__all__'
+        read_only_fields = ['user']
 
 class UnitSerializer(serializers.ModelSerializer):
     class Meta:
