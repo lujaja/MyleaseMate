@@ -1,11 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model, authenticate
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
-from .models import (
-    Property,
-    Unit
-)
-
+from .models import *
 User = get_user_model()
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -72,10 +68,66 @@ class UserProfileSerializer(serializers.ModelSerializer):
 class PropertySerializer(serializers.ModelSerializer):
     class Meta:
         model = Property
-        fields = '__all__'
-        read_only_fields = ['user']
+        fields = ['id', 'user', 'property_name', 'address', 'type', 'size', 'rent_amount',
+                  'photos', 'virtual_tour', 'listing_platforms', 'valuation']
+        read_only_fields = ['user'] # Mark 'user' field as read-only
 
 class UnitSerializer(serializers.ModelSerializer):
     class Meta:
         model = Unit
+        fields = '__all__'
+    
+class LeaseSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Lease
+        fields = '__all__'
+
+class RentPaymentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = RentPayment
+        fields = '__all__'
+
+class MaintenanceRequestSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MaintenanceRequest
+        fields = '__all__'
+
+class MessageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Message
+        fields = '__all__'
+
+class DocumentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Document
+        fields = '__all__'
+
+class ExpenseSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Expense
+        fields = '__all__'
+
+class FeedbackSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Feedback
+        fields = '__all__'
+
+class VendorSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Vendor
+        fields = '__all__'
+
+class TenantScreeningSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TenantScreening
+        fields = '__all__'
+
+class ForumSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Forum
+        fields = '__all__'
+
+class ForumMessageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ForumMessage
         fields = '__all__'

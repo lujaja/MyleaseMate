@@ -82,7 +82,7 @@ class Unit(models.Model):
 
 class Lease(models.Model):
     unit = models.ForeignKey(Unit, on_delete=models.CASCADE, related_name='leases')
-    tenantID = models.ForeignKey(User, on_delete=models.CASCADE, related_name='leases')
+    tenant_id = models.ForeignKey(User, on_delete=models.CASCADE, related_name='leases')
     start_date = models.DateField()
     end_date = models.DateField(null=True)
     rent_amount = models.DecimalField(max_digits=10, decimal_places=2)
@@ -99,7 +99,7 @@ class RentPayment(models.Model):
 
 class MaintenanceRequest(models.Model):
     unit = models.ForeignKey(Unit, on_delete=models.CASCADE, related_name='maintenance_requests')
-    tenantID = models.ForeignKey(User, on_delete=models.CASCADE, related_name='maintenance_requests')
+    tenant_id = models.ForeignKey(User, on_delete=models.CASCADE, related_name='maintenance_requests')
     description = models.TextField()
     request_date = models.DateField()
     status = models.CharField(max_length=15, choices=[('Pending', 'Pending'), ('In Progress', 'In Progress'), ('Completed', 'Completed')])
@@ -128,7 +128,7 @@ class Expense(models.Model):
     date = models.DateField()
 
 class Feedback(models.Model):
-    givenBy = models.ForeignKey(User, on_delete=models.CASCADE, related_name='given_feedback')
+    given_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='given_feedback')
     forUser = models.ForeignKey(User, on_delete=models.CASCADE, related_name='received_feedback')
     rating = models.FloatField()
     comments = models.TextField()

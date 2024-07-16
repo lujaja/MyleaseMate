@@ -7,27 +7,14 @@ from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 from django_otp.plugins.otp_totp.models import TOTPDevice
 from django.utils.crypto import get_random_string
-from .models import (
-    User,
-    Property,
-    Unit
-)
+from .models import *
 from .tasks import (
     update_property_valuation,
     process_unit_request
 )
 
 # import Serializers here after adding them in the named file
-from .serializers import (
-    UserRegisterSerializer,
-    UserLoginSerializer,
-    EmailVerificationSerializer,
-    PasswordResetSerializer,
-    PasswordResetConfirmSerializer,
-    UserProfileSerializer,
-    PropertySerializer,
-    UnitSerializer
-)
+from .serializers import *
 
 # import all tasks allocated to celery here
 from .tasks import (
@@ -190,10 +177,12 @@ def disable_2fa(request):
     user.save()
     return Response({'detail': '2FA disabled successfully'}, status=status.HTTP_200_OK)
 
+"""
+********************************************************
+* Property APIs                                    *
+********************************************************
+"""
 
-
-
-# Add a new property (Private, Landlord)
 @api_view(['POST', 'GET'])
 @permission_classes([IsAuthenticated])
 def properties(request):
@@ -203,29 +192,33 @@ def properties(request):
     if request.method == 'POST':
         serializer = PropertySerializer(data=request.data)
         if serializer.is_valid():
-            serializer.save(landlordID=request.user)
+            serializer.save(user=request.user)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
     if request.method == 'GET':
-        properties = Property.objects.filter(landlordID=request.user)
+        properties = Property.objects.filter(user=request.user)
         serializer = PropertySerializer(properties, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
-@api_view(['PUT', 'DELETE'])
+@api_view(['GET', 'PUT', 'DELETE'])
 @permission_classes([IsAuthenticated])
 def property_details(request, property_id):
     try:
-        property = Property.objects.get(id=property_id, landlordID=request.user)
+        property = Property.objects.get(id=property_id, user=request.user)
     except Property.DoesNotExist:
         return Response({'detail': 'Property not found'}, status=status.HTTP_404_NOT_FOUND)
+    
+    if request.method == 'GET':
+        serializer = PropertySerializer(property)
+        return Response(serializer.data, status=status.HTTP_200_OK)
     
     if request.method == 'PUT':
         serializer = PropertySerializer(property, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
 
-            # Call the Celery task to update the property valuation asynchronously
+            # Example: Call Celery task asynchronously
             new_valuation = serializer.validated_data.get('valuation')
             if new_valuation:
                 update_property_valuation.delay(property.id, new_valuation)
@@ -236,7 +229,6 @@ def property_details(request, property_id):
     if request.method == 'DELETE':
         property.delete()
         return Response({'detail': 'Property deleted successfully'}, status=status.HTTP_204_NO_CONTENT)
-    
 """
 ********************************************************
 * Unit Manager APIs                                    *
@@ -246,7 +238,6 @@ def property_details(request, property_id):
 @permission_classes([IsAuthenticated])
 def manage_units(request, property_name=None, unit_id=None):
     user = request.user
-    print(user)
     
     # Ensure user is a Landlord
     if user.role != 'Landlord':
@@ -254,8 +245,6 @@ def manage_units(request, property_name=None, unit_id=None):
     
     # Retrieve properties belonging to the logged-in Landlord
     properties = Property.objects.filter(user=user)
-    for n in properties:
-        print(n)
     
     # Handle POST request to add a new unit to a property
     if request.method == 'POST':
@@ -305,5 +294,399 @@ def manage_units(request, property_name=None, unit_id=None):
             return Response({'detail': 'Unit deleted successfully'}, status=status.HTTP_204_NO_CONTENT)
         except Unit.DoesNotExist:
             return Response({'detail': 'Unit not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    return Response({'detail': 'Method not allowed'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+"""
+Lease management APIs
+"""
+@api_view(['POST', 'GET', 'PUT', 'DELETE'])
+@permission_classes([IsAuthenticated])
+def manage_leases(request, lease_id=None):
+    user = request.user
+    
+    if request.method == 'POST':
+        if user.role != 'Landlord':
+            return Response({'detail': 'Unauthorized access'}, status=status.HTTP_403_FORBIDDEN)
+        serializer = LeaseSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    if request.method == 'GET':
+        if lease_id:
+            try:
+                if user.role == 'Landlord':
+                    lease = Lease.objects.get(id=lease_id, property__user=user)
+                else:
+                    lease = Lease.objects.get(id=lease_id, tenant=user)
+                serializer = LeaseSerializer(lease)
+                return Response(serializer.data, status=status.HTTP_200_OK)
+            except Lease.DoesNotExist:
+                return Response({'detail': 'Lease not found'}, status=status.HTTP_404_NOT_FOUND)
+        else:
+            if user.role == 'Landlord':
+                leases = Lease.objects.filter(property__user=user)
+            else:
+                leases = Lease.objects.filter(tenant=user)
+            serializer = LeaseSerializer(leases, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+    if request.method == 'PUT':
+        if user.role != 'Landlord':
+            return Response({'detail': 'Unauthorized access'}, status=status.HTTP_403_FORBIDDEN)
+        try:
+            lease = Lease.objects.get(id=lease_id, property__user=user)
+            serializer = LeaseSerializer(lease, data=request.data, partial=True)
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data, status=status.HTTP_200_OK)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except Lease.DoesNotExist:
+            return Response({'detail': 'Lease not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'DELETE':
+        if user.role != 'Landlord':
+            return Response({'detail': 'Unauthorized access'}, status=status.HTTP_403_FORBIDDEN)
+        try:
+            lease = Lease.objects.get(id=lease_id, property__user=user)
+            lease.delete()
+            return Response({'detail': 'Lease deleted successfully'}, status=status.HTTP_204_NO_CONTENT)
+        except Lease.DoesNotExist:
+            return Response({'detail': 'Lease not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    return Response({'detail': 'Method not allowed'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+""" Rent management APIs """
+@api_view(['POST', 'GET', 'PUT', 'DELETE'])
+@permission_classes([IsAuthenticated])
+def manage_rentpayments(request, payment_id=None):
+    user = request.user
+
+    if request.method == 'POST':
+        if user.role != 'Tenant':
+            return Response({'detail': 'Unauthorized access'}, status=status.HTTP_403_FORBIDDEN)
+        serializer = RentPaymentSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    if request.method == 'GET':
+        if payment_id:
+            try:
+                if user.role == 'Landlord':
+                    payment = RentPayment.objects.get(id=payment_id, lease__property__user=user)
+                else:
+                    payment = RentPayment.objects.get(id=payment_id, lease__tenant=user)
+                serializer = RentPaymentSerializer(payment)
+                return Response(serializer.data, status=status.HTTP_200_OK)
+            except RentPayment.DoesNotExist:
+                return Response({'detail': 'Payment not found'}, status=status.HTTP_404_NOT_FOUND)
+        else:
+            if user.role == 'Landlord':
+                payments = RentPayment.objects.filter(lease__property__user=user)
+            else:
+                payments = RentPayment.objects.filter(lease__tenant=user)
+            serializer = RentPaymentSerializer(payments, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+    if request.method == 'PUT':
+        if user.role != 'Tenant':
+            return Response({'detail': 'Unauthorized access'}, status=status.HTTP_403_FORBIDDEN)
+        try:
+            payment = RentPayment.objects.get(id=payment_id, lease__tenant=user)
+            serializer = RentPaymentSerializer(payment, data=request.data, partial=True)
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data, status=status.HTTP_200_OK)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except RentPayment.DoesNotExist:
+            return Response({'detail': 'Payment not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'DELETE':
+        if user.role != 'Tenant':
+            return Response({'detail': 'Unauthorized access'}, status=status.HTTP_403_FORBIDDEN)
+        try:
+            payment = RentPayment.objects.get(id=payment_id, lease__tenant=user)
+            payment.delete()
+            return Response({'detail': 'Payment deleted successfully'}, status=status.HTTP_204_NO_CONTENT)
+        except RentPayment.DoesNotExist:
+            return Response({'detail': 'Payment not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    return Response({'detail': 'Method not allowed'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+""" Maintencance management """
+@api_view(['POST', 'GET', 'PUT', 'DELETE'])
+@permission_classes([IsAuthenticated])
+def manage_maintenancerequests(request, request_id=None):
+    user = request.user
+
+    if request.method == 'POST':
+        if user.role != 'Tenant':
+            return Response({'detail': 'Unauthorized access'}, status=status.HTTP_403_FORBIDDEN)
+        serializer = MaintenanceRequestSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    if request.method == 'GET':
+        if request_id:
+            try:
+                if user.role == 'Landlord':
+                    request_obj = MaintenanceRequest.objects.get(id=request_id, unit__property__user=user)
+                else:
+                    request_obj = MaintenanceRequest.objects.get(id=request_id, tenant=user)
+                serializer = MaintenanceRequestSerializer(request_obj)
+                return Response(serializer.data, status=status.HTTP_200_OK)
+            except MaintenanceRequest.DoesNotExist:
+                return Response({'detail': 'Request not found'}, status=status.HTTP_404_NOT_FOUND)
+        else:
+            if user.role == 'Landlord':
+                requests = MaintenanceRequest.objects.filter(unit__property__user=user)
+            else:
+                requests = MaintenanceRequest.objects.filter(tenant=user)
+            serializer = MaintenanceRequestSerializer(requests, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+    if request.method == 'PUT':
+        if user.role != 'Tenant':
+            return Response({'detail': 'Unauthorized access'}, status=status.HTTP_403_FORBIDDEN)
+        try:
+            request_obj = MaintenanceRequest.objects.get(id=request_id, tenant=user)
+            serializer = MaintenanceRequestSerializer(request_obj, data=request.data, partial=True)
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data, status=status.HTTP_200_OK)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except MaintenanceRequest.DoesNotExist:
+            return Response({'detail': 'Request not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'DELETE':
+        if user.role != 'Tenant':
+            return Response({'detail': 'Unauthorized access'}, status=status.HTTP_403_FORBIDDEN)
+        try:
+            request_obj = MaintenanceRequest.objects.get(id=request_id, tenant=user)
+            request_obj.delete()
+            return Response({'detail': 'Request deleted successfully'}, status=status.HTTP_204_NO_CONTENT)
+        except MaintenanceRequest.DoesNotExist:
+            return Response({'detail': 'Request not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    return Response({'detail': 'Method not allowed'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+""" Communication APIs"""
+@api_view(['POST', 'GET', 'PUT', 'DELETE'])
+@permission_classes([IsAuthenticated])
+def manage_messages(request, message_id=None):
+    user = request.user
+
+    if request.method == 'POST':
+        serializer = MessageSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save(sender=user)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    if request.method == 'GET':
+        if message_id:
+            try:
+                message = Message.objects.get(id=message_id, sender=user) | Message.objects.get(id=message_id, receiver=user)
+                serializer = MessageSerializer(message)
+                return Response(serializer.data, status=status.HTTP_200_OK)
+            except Message.DoesNotExist:
+                return Response({'detail': 'Message not found'}, status=status.HTTP_404_NOT_FOUND)
+        else:
+            messages = Message.objects.filter(sender=user) | Message.objects.filter(receiver=user)
+            serializer = MessageSerializer(messages, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+    return Response({'detail': 'Method not allowed'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+""" Document Management """
+@api_view(['POST', 'GET', 'PUT', 'DELETE'])
+@permission_classes([IsAuthenticated])
+def manage_documents(request, document_id=None):
+    user = request.user
+
+    if request.method == 'POST':
+        serializer = DocumentSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    if request.method == 'GET':
+        if document_id:
+            try:
+                document = Document.objects.get(id=document_id, user=user)
+                serializer = DocumentSerializer(document)
+                return Response(serializer.data, status=status.HTTP_200_OK)
+            except Document.DoesNotExist:
+                return Response({'detail': 'Document not found'}, status=status.HTTP_404_NOT_FOUND)
+        else:
+            documents = Document.objects.filter(user=user)
+            serializer = DocumentSerializer(documents, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+    if request.method == 'PUT':
+        try:
+            document = Document.objects.get(id=document_id, user=user)
+            serializer = DocumentSerializer(document, data=request.data, partial=True)
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data, status=status.HTTP_200_OK)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except Document.DoesNotExist:
+            return Response({'detail': 'Document not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'DELETE':
+        try:
+            document = Document.objects.get(id=document_id, user=user)
+            document.delete()
+            return Response({'detail': 'Document deleted successfully'}, status=status.HTTP_204_NO_CONTENT)
+        except Document.DoesNotExist:
+            return Response({'detail': 'Document not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    return Response({'detail': 'Method not allowed'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+""" Finacial Management """
+@api_view(['POST', 'GET', 'PUT', 'DELETE'])
+@permission_classes([IsAuthenticated])
+def manage_expenses(request, expense_id=None):
+    user = request.user
+
+    if request.method == 'POST':
+        if user.role != 'Landlord':
+            return Response({'detail': 'Unauthorized access'}, status=status.HTTP_403_FORBIDDEN)
+        serializer = ExpenseSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    if request.method == 'GET':
+        if expense_id:
+            try:
+                expense = Expense.objects.get(id=expense_id, property__user=user)
+                serializer = ExpenseSerializer(expense)
+                return Response(serializer.data, status=status.HTTP_200_OK)
+            except Expense.DoesNotExist:
+                return Response({'detail': 'Expense not found'}, status=status.HTTP_404_NOT_FOUND)
+        else:
+            expenses = Expense.objects.filter(property__user=user)
+            serializer = ExpenseSerializer(expenses, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+    if request.method == 'PUT':
+        if user.role != 'Landlord':
+            return Response({'detail': 'Unauthorized access'}, status=status.HTTP_403_FORBIDDEN)
+        try:
+            expense = Expense.objects.get(id=expense_id, property__user=user)
+            serializer = ExpenseSerializer(expense, data=request.data, partial=True)
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data, status=status.HTTP_200_OK)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except Expense.DoesNotExist:
+            return Response({'detail': 'Expense not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'DELETE':
+        if user.role != 'Landlord':
+            return Response({'detail': 'Unauthorized access'}, status=status.HTTP_403_FORBIDDEN)
+        try:
+            expense = Expense.objects.get(id=expense_id, property__user=user)
+            expense.delete()
+            return Response({'detail': 'Expense deleted successfully'}, status=status.HTTP_204_NO_CONTENT)
+        except Expense.DoesNotExist:
+            return Response({'detail': 'Expense not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    return Response({'detail': 'Method not allowed'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+""" Feedback management"""
+@api_view(['POST', 'GET', 'PUT', 'DELETE'])
+@permission_classes([IsAuthenticated])
+def manage_feedback(request, feedback_id=None):
+    user = request.user
+
+    if request.method == 'POST':
+        serializer = FeedbackSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    if request.method == 'GET':
+        if feedback_id:
+            try:
+                feedback = Feedback.objects.get(id=feedback_id, user=user)
+                serializer = FeedbackSerializer(feedback)
+                return Response(serializer.data, status=status.HTTP_200_OK)
+            except Feedback.DoesNotExist:
+                return Response({'detail': 'Feedback not found'}, status=status.HTTP_404_NOT_FOUND)
+        else:
+            feedbacks = Feedback.objects.filter(user=user)
+            serializer = FeedbackSerializer(feedbacks, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+    return Response({'detail': 'Method not allowed'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+""" Forum Management """
+@api_view(['POST', 'GET', 'PUT', 'DELETE'])
+@permission_classes([IsAuthenticated])
+def manage_forums(request, forum_id=None):
+    user = request.user
+
+    if request.method == 'POST':
+        serializer = ForumSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    if request.method == 'GET':
+        if forum_id:
+            try:
+                forum = Forum.objects.get(id=forum_id)
+                serializer = ForumSerializer(forum)
+                return Response(serializer.data, status=status.HTTP_200_OK)
+            except Forum.DoesNotExist:
+                return Response({'detail': 'Forum not found'}, status=status.HTTP_404_NOT_FOUND)
+        else:
+            forums = Forum.objects.all()
+            serializer = ForumSerializer(forums, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+    return Response({'detail': 'Method not allowed'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+@api_view(['POST', 'GET', 'PUT', 'DELETE'])
+@permission_classes([IsAuthenticated])
+def manage_forum_messages(request, forum_id, message_id=None):
+    user = request.user
+
+    if request.method == 'POST':
+        try:
+            forum = Forum.objects.get(id=forum_id)
+            serializer = ForumMessageSerializer(data=request.data)
+            if serializer.is_valid():
+                serializer.save(forum=forum, user=user)
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except Forum.DoesNotExist:
+            return Response({'detail': 'Forum not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'GET':
+        if message_id:
+            try:
+                message = ForumMessage.objects.get(id=message_id, forum__id=forum_id)
+                serializer = ForumMessageSerializer(message)
+                return Response(serializer.data, status=status.HTTP_200_OK)
+            except ForumMessage.DoesNotExist:
+                return Response({'detail': 'Message not found'}, status=status.HTTP_404_NOT_FOUND)
+        else:
+            messages = ForumMessage.objects.filter(forum__id=forum_id)
+            serializer = ForumMessageSerializer(messages, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
 
     return Response({'detail': 'Method not allowed'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
