@@ -4,6 +4,8 @@ from django.urls import path
 from .views import *
 
 urlpatterns = [
+    path('status/', status_view, name='status'),
+    # Register user urls
     path('register/', register, name='register'),
     path('login/', login, name='login'),
     path('verify-email/', verify_email, name='verify_email'),
@@ -16,48 +18,51 @@ urlpatterns = [
     path('properties/', properties, name='properties'),
     path('properties/<int:property_id>/', property_details, name='property_details'),
     # Unit urls
-    path('api/units/', manage_units, name='manage_units'),
-    path('api/units/<str:property_name>/', manage_units, name='manage_units_property'),
-    path('api/units/<str:property_name>/<int:unit_id>/', manage_units, name='manage_units_property_unit'),
-    path('api/units/<int:unit_id>/', manage_units, name='manage_units_unit'),
-    # Unit Management
-    path('api/units/', manage_units, name='manage_units'),
-    path('api/units/<int:unit_id>/', manage_units, name='unit_detail'),
+    path('units/', manage_units, name='manage_units'),
+    path('units/<int:property_id>/', manage_units, name='manage_units_by_property'),
+    path('units/<int:property_id>/<int:unit_id>/', manage_units, name='manage_unit_detail'),
+    # URLs for managing Lease objects
+    path('leases/', manage_leases, name='manage_leases'),
+    path('leases/<int:lease_id>/', manage_leases, name='manage_lease'),
 
-    # Lease Management
-    path('api/leases/', manage_leases, name='manage_lease'),
-    path('api/leases/<int:lease_id>/', manage_leases, name='lease_detail'),
+    # URLs for managing RentPayment objects
+    path('rent-payments/', manage_rentpayments, name='manage_rentpayments'),
+    path('rent-payments/<int:payment_id>/', manage_rentpayments, name='manage_rentpayment'),
 
-    # Rent Management
-    path('api/rentpayments/', manage_rentpayments, name='manage_rentpayments'),
-    path('api/rentpayments/<int:payment_id>/', manage_rentpayments, name='rentpayment_detail'),
+    # URLs for managing MaintenanceRequest objects
+    path('maintenance-requests/', manage_maintenancerequests, name='manage_maintenancerequests'),
+    path('maintenance-requests/<int:request_id>/', manage_maintenancerequests, name='manage_maintenancerequest'),
 
-    # Maintenance Management
-    path('api/maintenancerequests/', manage_maintenancerequests, name='manage_maintenancerequests'),
-    path('api/maintenancerequests/<int:request_id>/', manage_maintenancerequests, name='maintenancerequest_detail'),
+    # URLs for managing Message objects
+    path('messages/', manage_messages, name='manage_messages'),
+    path('messages/<int:message_id>/', manage_messages, name='manage_message'),
 
-    # Communication Management
-    path('api/messages/', manage_messages, name='manage_messages'),
-    path('api/messages/<int:message_id>/', manage_messages, name='message_detail'),
+    # URLs for managing Document objects
+    path('documents/', manage_documents, name='manage_documents'),
+    path('documents/<int:document_id>/', manage_documents, name='manage_document'),
 
-    # Document Management
-    path('api/documents/', manage_documents, name='manage_documents'),
-    path('api/documents/<int:document_id>/', manage_documents, name='document_detail'),
+    # URLs for managing Expense objects
+    path('expenses/', manage_expenses, name='manage_expenses'),
+    path('expenses/<int:expense_id>/', manage_expenses, name='manage_expense'),
 
-    # Financial Management - Expenses
-    path('api/expenses/', manage_expenses, name='manage_expenses'),
-    path('api/expenses/<int:expense_id>/', manage_expenses, name='expense_detail'),
+    # URLs for managing Feedback objects
+    path('feedback/', manage_feedback, name='manage_feedback'),
+    path('feedback/<int:feedback_id>/', manage_feedback, name='manage_feedback_detail'),
 
-    # Feedback Management
-    path('api/feedback/', manage_feedback, name='manage_feedback'),
-    path('api/feedback/<int:feedback_id>/', manage_feedback, name='feedback_detail'),
+    # URLs for managing Vendor objects
+    path('vendors/', manage_vendors, name='manage_vendors'),
+    path('vendors/<int:vendor_id>/', manage_vendors, name='manage_vendor'),
 
-    # Forum Management
-    path('api/forums/', manage_forums, name='manage_forums'),
-    path('api/forums/<int:forum_id>/', manage_forums, name='forum_detail'),
+    # URLs for managing TenantScreening objects
+    path('tenant-screening/', manage_tenant_screening, name='manage_tenant_screening'),
+    path('tenant-screening/<int:screening_id>/', manage_tenant_screening, name='manage_tenant_screening_detail'),
 
-    # Forum Messages Management
-    path('api/forummessages/', manage_forum_messages, name='manage_forummessages'),
-    path('api/forummessages/<int:forummessage_id>/', manage_forum_messages, name='forummessage_detail'),
+    # URLs for managing Forum objects
+    path('forums/', manage_forum, name='manage_forum'),
+    path('forums/<int:forum_id>/', manage_forum, name='manage_forum_detail'),
+
+    # URLs for managing ForumMessage objects
+    path('forums/<int:forum_id>/messages/', manage_forum_messages, name='manage_forum_messages'),
+    path('forums/<int:forum_id>/messages/<int:message_id>/', manage_forum_messages, name='manage_forum_message'),
 ]
 

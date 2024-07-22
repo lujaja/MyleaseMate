@@ -23,7 +23,7 @@ class UserRegisterSerializer(serializers.ModelSerializer):
         return user
     def update(self, instance, validated_data):
         if 'password' in validated_data:
-            instance.set_password(validated_data['password'])
+            instance.password = validated_data['password']
         return super().update(instance, validated_data)
 
 class UserLoginSerializer(serializers.Serializer):
@@ -80,22 +80,29 @@ class UnitSerializer(serializers.ModelSerializer):
 class LeaseSerializer(serializers.ModelSerializer):
     class Meta:
         model = Lease
-        fields = '__all__'
+        fields = [
+            'property', 'unit', 'tenant', 'landlord',
+            'lease_start_date', 'lease_end_date', 'rent_amount',
+            'security_deposit', 'payment_frequency', 'lease_terms',
+            'renewal_terms', 'pet_policy', 'maintenance_responsibility',
+            'status', 'created_at', 'updated_at', 'utilities_included',
+            'services_included'
+        ]
 
 class RentPaymentSerializer(serializers.ModelSerializer):
     class Meta:
-        model = RentPayment
+        model = Rent_Payment
         fields = '__all__'
 
 class MaintenanceRequestSerializer(serializers.ModelSerializer):
     class Meta:
-        model = MaintenanceRequest
+        model = Maintenance_Request
         fields = '__all__'
 
 class MessageSerializer(serializers.ModelSerializer):
     class Meta:
         model = Message
-        fields = '__all__'
+        fields = ['receiver', 'content', 'attachments', 'timestamp']
 
 class DocumentSerializer(serializers.ModelSerializer):
     class Meta:
@@ -119,7 +126,7 @@ class VendorSerializer(serializers.ModelSerializer):
 
 class TenantScreeningSerializer(serializers.ModelSerializer):
     class Meta:
-        model = TenantScreening
+        model = Tenant_Screening
         fields = '__all__'
 
 class ForumSerializer(serializers.ModelSerializer):
@@ -129,5 +136,5 @@ class ForumSerializer(serializers.ModelSerializer):
 
 class ForumMessageSerializer(serializers.ModelSerializer):
     class Meta:
-        model = ForumMessage
+        model = Forum_Message
         fields = '__all__'

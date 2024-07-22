@@ -138,6 +138,17 @@ CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = os.getenv('TIME_ZONE', 'UTC')
+CELERY_TASK_TRACK_STARTED = True
+CELERY_TASK_TIME_LIMIT = 30 * 60
+CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
+"""
+CELERY_BEAT_SCHEDULE = {
+    'example-task': {
+        'task': 'my_app.tasks.example_task',
+        'schedule': 60.0,  # Run every 60 seconds
+    },
+}
+"""
 
 CHANNEL_LAYERS = {
     'default': {
@@ -177,7 +188,6 @@ EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSOWRD')
 DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL')
 
-
 """
 LOGGING = {
     'version': 1,
@@ -208,4 +218,5 @@ LOGGING = {
         },
     },
 }
+
 """
