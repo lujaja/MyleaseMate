@@ -81,7 +81,8 @@ DATABASES = {
         'HOST': os.getenv('DB_HOST'),
         'PORT': os.getenv('DB_PORT'),
        'OPTIONS': {
-            'options': f"-c timezone={os.getenv('TIME_ZONE')}",
+           'client_encoding': 'UTF8',
+           'options': f"-c timezone={os.getenv('TIME_ZONE')}",
         }
     }
 }
@@ -110,6 +111,7 @@ AUTHENTICATION_BACKENDS = [
 ]
 
 
+
 AUTH_USER_MODEL = 'leaseApp.User'
 
 # Internationalization
@@ -136,6 +138,17 @@ CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = os.getenv('TIME_ZONE', 'UTC')
+CELERY_TASK_TRACK_STARTED = True
+CELERY_TASK_TIME_LIMIT = 30 * 60
+CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
+"""
+CELERY_BEAT_SCHEDULE = {
+    'example-task': {
+        'task': 'my_app.tasks.example_task',
+        'schedule': 60.0,  # Run every 60 seconds
+    },
+}
+"""
 
 CHANNEL_LAYERS = {
     'default': {
@@ -156,7 +169,7 @@ REST_FRAMEWORK = {
 
 SIMPLE_JWT = {
     'SIGNING_KEY': os.getenv('JWT_SECRET_KEY'),
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=15),
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,
@@ -167,15 +180,15 @@ AXES_FAILURE_LIMIT = 1000
 AXES_COOLOFF_TIME = timedelta(minutes=15)
 # AXES_LOCKOUT_CALLABLE = 'users.views.lockout_response'
 
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'smtp.gmail.com'
-EMAIL_PORT = 587
-EMAIL_USE_TLS = True
-EMAIL_HOST_USER = 'jarzcyber@gmail.com'
-EMAIL_HOST_PASSWORD = 'kaf12lujaja10L@'
-DEFAULT_FROM_EMAIL = 'noreply@myleasemate.com'
+EMAIL_BACKEND = os.getenv('EMAIL_BACKEND ')
+EMAIL_HOST = os.getenv('EMAIL_HOST')
+EMAIL_PORT = os.getenv('EMAIL_PORT')
+EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS')
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSOWRD')
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL')
 
-
+"""
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -205,3 +218,5 @@ LOGGING = {
         },
     },
 }
+
+"""

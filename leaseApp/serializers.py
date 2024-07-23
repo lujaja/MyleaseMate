@@ -1,14 +1,12 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model, authenticate
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
-from .models import Property
-
+from .models import *
 User = get_user_model()
-
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'userName', 'firstName', 'lastName', 'email', 'role', 'contact', 'profilePic', 'rating']
+        fields = ['id', 'username', 'first_name', 'last_name', 'email', 'role', 'contact', 'profilePic', 'rating']
 
 class UserRegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
@@ -16,13 +14,17 @@ class UserRegisterSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ['userName', 'password', 'firstName', 'lastName', 'email', 'role', 'contact']
+        fields = ['password', 'first_name', 'last_name', 'email', 'role', 'contact']
 
     def create(self, validated_data):
         user = User.objects.create(**validated_data)
-        user.set_password(validated_data['password'])
+        # user.set_password(validated_data['password'])
         user.save()
         return user
+    def update(self, instance, validated_data):
+        if 'password' in validated_data:
+            instance.password = validated_data['password']
+        return super().update(instance, validated_data)
 
 class UserLoginSerializer(serializers.Serializer):
     email = serializers.EmailField()
@@ -36,14 +38,13 @@ class UserLoginSerializer(serializers.Serializer):
             user = authenticate(request=self.context.get('request'), username=email, password=password)
 
             if not user:
-                msg = 'Unable to log in with provided credentials.'
-                raise serializers.ValidationError(msg, code='authorization')
+                raise serializers.ValidationError('Unable to log in with provided credentials.', code='authorization')
 
             attrs['user'] = user
             return attrs
         else:
-            msg = 'Must include "email" and "password".'
-            raise serializers.ValidationError(msg, code='authorization')
+            raise serializers.ValidationError('Must include "email" and "password".', code='authorization')
+
 
 class EmailVerificationSerializer(serializers.Serializer):
     email = serializers.EmailField()
@@ -60,15 +61,80 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
 class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'userName', 'firstName', 'lastName', 'email', 'contact', 'profilePic', 'rating']
+        fields = ['id', 'first_name', 'last_name', 'email', 'contact', 'profile_pic', 'rating']
         read_only_fields = ['email']
 
 
 class PropertySerializer(serializers.ModelSerializer):
     class Meta:
         model = Property
+        fields = ['id', 'user', 'property_name', 'address', 'type', 'size', 'rent_amount',
+                  'photos', 'virtual_tour', 'listing_platforms', 'valuation']
+        read_only_fields = ['user'] # Mark 'user' field as read-only
+
+class UnitSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Unit
+        fields = '__all__'
+    
+class LeaseSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Lease
         fields = [
-            'id', 'landlord', 'propertyName', 'address', 'type', 'size', 'rentAmount', 'photos', 'virtualTour',
-            'listingPlatforms', 'valuation'
+            'property', 'unit', 'tenant', 'landlord',
+            'lease_start_date', 'lease_end_date', 'rent_amount',
+            'security_deposit', 'payment_frequency', 'lease_terms',
+            'renewal_terms', 'pet_policy', 'maintenance_responsibility',
+            'status', 'created_at', 'updated_at', 'utilities_included',
+            'services_included'
         ]
-        read_only_fields = ['landlordID']
+
+class RentPaymentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Rent_Payment
+        fields = '__all__'
+
+class MaintenanceRequestSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Maintenance_Request
+        fields = '__all__'
+
+class MessageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Message
+        fields = ['receiver', 'content', 'attachments', 'timestamp']
+
+class DocumentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Document
+        fields = '__all__'
+
+class ExpenseSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Expense
+        fields = '__all__'
+
+class FeedbackSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Feedback
+        fields = '__all__'
+
+class VendorSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Vendor
+        fields = '__all__'
+
+class TenantScreeningSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Tenant_Screening
+        fields = '__all__'
+
+class ForumSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Forum
+        fields = '__all__'
+
+class ForumMessageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Forum_Message
+        fields = '__all__'
