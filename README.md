@@ -44,8 +44,8 @@ Tenants can submit maintenace requests, which landlords can assign to vendors an
 
 ## Authors
 Edith Banda           edithbanda014@gmail.com
-Lujaja Luvuga 
-jarzcyber@gmail.com 
+     
+Lujaja Luvuga         jarzcyber@gmail.com
 
 Run these commands
 `pip install -r requirements.txt`
