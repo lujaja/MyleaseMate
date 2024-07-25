@@ -47,7 +47,8 @@ Edith Banda           edithbanda014@gmail.com
      
 Lujaja Luvuga         jarzcyber@gmail.com
 
-Run these commands
+## Run these commands
+
 `pip install -r requirements.txt`
 `python manage.py makemigration`
 `python manage.py migrate`
